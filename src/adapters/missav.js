@@ -1,15 +1,3 @@
-const EXCLUDED_FIRST_SEGMENTS = new Set([
-  "",
-  "cn",
-  "dm18",
-  "genres",
-  "makers",
-  "actresses",
-  "ranking",
-  "tags",
-  "search"
-]);
-
 const VIDEO_SLUG_PATTERN = /^[a-z]{2,10}-?\d{2,5}(?:-[a-z0-9]+)*$/i;
 const VIDEO_CODE_EXTRACT_PATTERN = /[a-z]{2,10}-?\d{2,5}/i;
 
@@ -39,15 +27,7 @@ function getSlugFromUrl(url) {
     return "";
   }
 
-  if (segments.length === 1) {
-    return segments[0];
-  }
-
-  if (segments[0] === "cn" && segments.length >= 2) {
-    return segments[1];
-  }
-
-  return segments[segments.length - 1];
+  return getDetailSlugCandidate(segments) || segments[segments.length - 1];
 }
 
 function cleanupTitle(rawTitle = "") {
@@ -73,6 +53,10 @@ function isVideoSlug(slug) {
   return VIDEO_SLUG_PATTERN.test(slug);
 }
 
+function getDetailSlugCandidate(segments) {
+  return [...segments].reverse().find((segment) => isVideoSlug(segment)) || "";
+}
+
 export const missavAdapter = {
   id: "missav",
   label: "MissAV",
@@ -82,23 +66,7 @@ export const missavAdapter = {
   },
   isDetailPage(url) {
     const segments = getNormalizedSegments(url);
-    if (segments.length === 0) {
-      return false;
-    }
-
-    if (segments.length === 1) {
-      return isVideoSlug(segments[0]);
-    }
-
-    if (segments[0] === "cn" && segments.length >= 2) {
-      return isVideoSlug(segments[1]);
-    }
-
-    if (EXCLUDED_FIRST_SEGMENTS.has(segments[0])) {
-      return false;
-    }
-
-    return isVideoSlug(segments[segments.length - 1]);
+    return Boolean(getDetailSlugCandidate(segments));
   },
   getReferer() {
     return "https://missav.ws/";

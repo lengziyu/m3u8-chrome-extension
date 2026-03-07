@@ -27,21 +27,13 @@
     return VIDEO_SLUG_PATTERN.test(slug);
   }
 
+  function getDetailSlugCandidate(segments) {
+    return [...segments].reverse().find((segment) => isVideoSlug(segment)) || "";
+  }
+
   function isDetailPage() {
     const segments = getPathSegments();
-    if (segments.length === 0) {
-      return false;
-    }
-
-    if (segments.length === 1) {
-      return isVideoSlug(segments[0]);
-    }
-
-    if (segments[0] === "cn" && segments.length >= 2) {
-      return isVideoSlug(segments[1]);
-    }
-
-    return false;
+    return Boolean(getDetailSlugCandidate(segments));
   }
 
   function findMasterPlaylistHint() {
