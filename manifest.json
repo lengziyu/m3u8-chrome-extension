@@ -1,0 +1,45 @@
+{
+  "manifest_version": 3,
+  "name": "M3U8 Downloader Bridge",
+  "description": "Capture MissAV HLS playlists and send selected streams to M3U8-Downloader.",
+  "version": "0.1.0",
+  "permissions": [
+    "storage",
+    "tabs",
+    "webRequest"
+  ],
+  "host_permissions": [
+    "https://missav.ws/*",
+    "https://surrit.com/*",
+    "http://127.0.0.1:38427/*"
+  ],
+  "background": {
+    "service_worker": "src/background.js",
+    "type": "module"
+  },
+  "icons": {
+    "16": "assets/icon-16.png",
+    "32": "assets/icon-32.png",
+    "48": "assets/icon-48.png",
+    "128": "assets/icon-128.png"
+  },
+  "action": {
+    "default_title": "M3U8 Downloader Bridge",
+    "default_popup": "src/popup/popup.html",
+    "default_icon": {
+      "16": "assets/icon-16.png",
+      "32": "assets/icon-32.png"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://missav.ws/*"
+      ],
+      "js": [
+        "src/content/content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ]
+}

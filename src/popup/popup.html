@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>M3U8 Downloader Bridge</title>
+    <link rel="stylesheet" href="./popup.css" />
+  </head>
+  <body>
+    <main class="app">
+      <section class="hero">
+        <p class="eyebrow">M3U8 Downloader Bridge</p>
+        <h1>MissAV 下载桥接</h1>
+        <p class="subtitle">抓取当前页面的 HLS 源，并把选中的清晰度发送到本地桌面下载器。</p>
+      </section>
+
+      <section class="panel status-panel">
+        <div class="status-row">
+          <span>本地客户端</span>
+          <strong id="client-status" class="status-chip">检查中</strong>
+        </div>
+        <div class="status-row">
+          <span>页面状态</span>
+          <strong id="page-status" class="status-chip muted">检查中</strong>
+        </div>
+        <p id="page-title" class="page-title">正在读取页面信息…</p>
+      </section>
+
+      <section class="panel" id="message-panel">
+        <p id="message-text" class="message">正在检测视频源…</p>
+      </section>
+
+      <section class="panel variants-panel">
+        <div class="section-head">
+          <h2>可选分辨率</h2>
+          <button id="refresh-button" class="ghost-button" type="button">刷新</button>
+        </div>
+        <div id="variants" class="variants"></div>
+      </section>
+    </main>
+
+    <template id="variant-template">
+      <button class="variant-card" type="button">
+        <span class="variant-resolution"></span>
+        <span class="variant-url"></span>
+      </button>
+    </template>
+
+    <script type="module" src="./popup.js"></script>
+  </body>
+  </html>

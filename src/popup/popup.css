@@ -1,0 +1,181 @@
+:root {
+  color-scheme: light;
+  --bg: #f7f5ff;
+  --panel: rgba(255, 255, 255, 0.82);
+  --panel-border: rgba(128, 92, 255, 0.18);
+  --text: #241b42;
+  --muted: #6c648f;
+  --accent: #7b5cff;
+  --accent-strong: #6237ff;
+  --accent-soft: rgba(123, 92, 255, 0.12);
+  --danger: #c04a84;
+  --success: #246b53;
+  --shadow: 0 18px 50px rgba(55, 31, 114, 0.14);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 380px;
+  background:
+    radial-gradient(circle at top left, rgba(170, 138, 255, 0.24), transparent 34%),
+    linear-gradient(180deg, #f4efff 0%, #fbf8ff 100%);
+  color: var(--text);
+  font: 14px/1.45 "SF Pro Display", "PingFang SC", "Helvetica Neue", sans-serif;
+}
+
+.app {
+  padding: 18px;
+}
+
+.hero {
+  margin-bottom: 14px;
+}
+
+.eyebrow {
+  margin: 0 0 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.hero h1 {
+  margin: 0;
+  font-size: 26px;
+  line-height: 1.05;
+}
+
+.subtitle {
+  margin: 10px 0 0;
+  color: var(--muted);
+}
+
+.panel {
+  margin-bottom: 12px;
+  padding: 14px;
+  border: 1px solid var(--panel-border);
+  border-radius: 18px;
+  background: var(--panel);
+  backdrop-filter: blur(14px);
+  box-shadow: var(--shadow);
+}
+
+.status-panel {
+  display: grid;
+  gap: 10px;
+}
+
+.status-row,
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.section-head h2 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.status-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 74px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}
+
+.status-chip.success {
+  background: rgba(36, 107, 83, 0.12);
+  color: var(--success);
+}
+
+.status-chip.error {
+  background: rgba(192, 74, 132, 0.12);
+  color: var(--danger);
+}
+
+.status-chip.muted {
+  background: rgba(108, 100, 143, 0.1);
+  color: var(--muted);
+}
+
+.page-title {
+  margin: 0;
+  color: var(--muted);
+}
+
+.message {
+  margin: 0;
+  color: var(--text);
+}
+
+.ghost-button {
+  border: 0;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  padding: 8px 12px;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.ghost-button:hover {
+  background: rgba(123, 92, 255, 0.18);
+}
+
+.variants {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.variant-card {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid rgba(123, 92, 255, 0.16);
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(244, 239, 255, 0.92));
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  transition: transform 120ms ease, box-shadow 120ms ease, border-color 120ms ease;
+}
+
+.variant-card:hover {
+  transform: translateY(-1px);
+  border-color: rgba(123, 92, 255, 0.34);
+  box-shadow: 0 14px 24px rgba(84, 49, 170, 0.12);
+}
+
+.variant-card:disabled {
+  cursor: not-allowed;
+  opacity: 0.56;
+}
+
+.variant-resolution {
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.variant-url {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted);
+  font-size: 12px;
+}
