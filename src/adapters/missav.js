@@ -27,7 +27,7 @@ function getSlugFromUrl(url) {
     return "";
   }
 
-  return getDetailSlugCandidate(segments) || segments[segments.length - 1];
+  return segments[segments.length - 1];
 }
 
 function cleanupTitle(rawTitle = "") {
@@ -54,7 +54,8 @@ function isVideoSlug(slug) {
 }
 
 function getDetailSlugCandidate(segments) {
-  return [...segments].reverse().find((segment) => isVideoSlug(segment)) || "";
+  const lastSegment = segments[segments.length - 1] || "";
+  return isVideoSlug(lastSegment) ? lastSegment : "";
 }
 
 export const missavAdapter = {

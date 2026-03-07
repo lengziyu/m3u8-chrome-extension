@@ -28,7 +28,8 @@
   }
 
   function getDetailSlugCandidate(segments) {
-    return [...segments].reverse().find((segment) => isVideoSlug(segment)) || "";
+    const lastSegment = segments[segments.length - 1] || "";
+    return isVideoSlug(lastSegment) ? lastSegment : "";
   }
 
   function isDetailPage() {
