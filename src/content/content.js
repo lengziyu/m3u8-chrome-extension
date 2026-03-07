@@ -5,6 +5,7 @@
   const SUCCESS_BADGE_MS = 15000;
   let shadowRefs = null;
   let refreshTimer = null;
+  let extensionAlive = true;
 
   function getPathSegments() {
     return window.location.pathname
@@ -64,6 +65,10 @@
   }
 
   function sendPageContext() {
+    if (!extensionAlive) {
+      return;
+    }
+
     const payload = {
       siteKey: "missav",
       pageUrl: window.location.href,
@@ -71,20 +76,20 @@
       detailPage: isDetailPage()
     };
 
-    chrome.runtime.sendMessage({
+    safeSendMessage({
       type: "REGISTER_PAGE",
       payload
-    });
+    }).catch(() => {});
 
     const hintedMasterUrl = findMasterPlaylistHint();
     if (hintedMasterUrl) {
-      chrome.runtime.sendMessage({
+      safeSendMessage({
         type: "REPORT_M3U8_HINT",
         payload: {
           pageUrl: window.location.href,
           masterUrl: hintedMasterUrl
         }
-      });
+      }).catch(() => {});
     }
   }
 
@@ -101,15 +106,49 @@
     return `${text.slice(0, maxLength - 1)}…`;
   }
 
+  function stopAutoRefresh() {
+    if (refreshTimer) {
+      window.clearInterval(refreshTimer);
+      refreshTimer = null;
+    }
+  }
+
+  function isContextInvalidatedError(error) {
+    const message = error instanceof Error ? error.message : String(error || "");
+    return message.includes("Extension context invalidated");
+  }
+
+  async function safeSendMessage(message) {
+    if (!extensionAlive) {
+      return null;
+    }
+
+    try {
+      return await chrome.runtime.sendMessage(message);
+    } catch (error) {
+      if (isContextInvalidatedError(error)) {
+        extensionAlive = false;
+        stopAutoRefresh();
+        return null;
+      }
+
+      throw error;
+    }
+  }
+
   async function handleOpenClient(button) {
     const wasDisabled = button.disabled;
     button.disabled = true;
     button.textContent = "打开中...";
     shadowRefs.message.textContent = "正在请求打开本地客户端窗口…";
 
-    const response = await chrome.runtime.sendMessage({
+    const response = await safeSendMessage({
       type: "OPEN_CLIENT_WINDOW"
     });
+
+    if (!response) {
+      return;
+    }
 
     if (response?.ok) {
       button.textContent = "已打开客户端";
@@ -171,12 +210,16 @@
         button.textContent = "发送中...";
         shadowRefs.message.textContent = `正在发送 ${variant.resolution} 到本地下载器…`;
 
-        const response = await chrome.runtime.sendMessage({
+        const response = await safeSendMessage({
           type: "ADD_TASK_FOR_TAB",
           payload: {
             variantUrl: variant.url
           }
         });
+
+        if (!response) {
+          return;
+        }
 
         if (response?.ok) {
           button.textContent = "已加入队列";
@@ -540,7 +583,7 @@
   }
 
   async function refreshState(forceRescan = false) {
-    if (!isDetailPage()) {
+    if (!extensionAlive || !isDetailPage()) {
       return;
     }
 
@@ -548,20 +591,21 @@
       sendPageContext();
     }
 
-    const state = await chrome.runtime.sendMessage({
+    const state = await safeSendMessage({
       type: "GET_TAB_STATE"
     });
+    if (!state) {
+      return;
+    }
 
     renderState(state);
   }
 
   function startAutoRefresh() {
-    if (refreshTimer) {
-      window.clearInterval(refreshTimer);
-    }
+    stopAutoRefresh();
 
     refreshTimer = window.setInterval(() => {
-      refreshState(false);
+      refreshState(false).catch(() => {});
     }, REFRESH_INTERVAL_MS);
   }
 
