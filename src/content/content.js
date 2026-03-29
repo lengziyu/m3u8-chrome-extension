@@ -3,9 +3,16 @@
   const PANEL_ID = "m3u8-downloader-bridge-root";
   const REFRESH_INTERVAL_MS = 4000;
   const SUCCESS_BADGE_MS = 15000;
+  const PAGE_FETCH_REQUEST = "M3U8_DOWNLOADER_FETCH_MASTER_PLAYLIST";
+  const PAGE_FETCH_RESPONSE = "M3U8_DOWNLOADER_FETCH_MASTER_PLAYLIST_RESULT";
   let shadowRefs = null;
   let refreshTimer = null;
   let extensionAlive = true;
+  let bridgeRequestId = 0;
+  let bridgeReady = false;
+  let bridgeReadyPromise = null;
+  let lastFallbackMasterUrl = "";
+  const pendingBridgeRequests = new Map();
 
   function getPathSegments() {
     return window.location.pathname
@@ -64,6 +71,164 @@
     return matched ? matched[0] : "";
   }
 
+  function toAbsoluteUrl(baseUrl, maybeRelativeUrl) {
+    try {
+      return new URL(maybeRelativeUrl, baseUrl).toString();
+    } catch {
+      return maybeRelativeUrl;
+    }
+  }
+
+  function parseAttributes(line) {
+    const attributes = {};
+    const raw = line.split(":")[1] || "";
+    const parts = raw.match(/(?:[^,"']+|"[^"]*"|'[^']*')+/g) || [];
+
+    for (const part of parts) {
+      const [key, value] = part.split("=");
+      if (!key || value == null) {
+        continue;
+      }
+
+      attributes[key.trim().toUpperCase()] = value.replace(/^['"]|['"]$/g, "").trim();
+    }
+
+    return attributes;
+  }
+
+  function parseMasterPlaylist(content, masterUrl) {
+    const lines = content
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    const variants = [];
+    for (let index = 0; index < lines.length; index += 1) {
+      const line = lines[index];
+      if (!line.startsWith("#EXT-X-STREAM-INF")) {
+        continue;
+      }
+
+      const nextLine = lines[index + 1];
+      if (!nextLine || nextLine.startsWith("#")) {
+        continue;
+      }
+
+      const attributes = parseAttributes(line);
+      variants.push({
+        resolution: attributes.RESOLUTION || "Unknown",
+        bandwidth: Number.parseInt(attributes.BANDWIDTH || "0", 10) || 0,
+        url: toAbsoluteUrl(masterUrl, nextLine)
+      });
+    }
+
+    return variants.sort((left, right) => {
+      const [leftWidth = 0, leftHeight = 0] = left.resolution.split("x").map(Number);
+      const [rightWidth = 0, rightHeight = 0] = right.resolution.split("x").map(Number);
+      const leftPixels = leftWidth * leftHeight;
+      const rightPixels = rightWidth * rightHeight;
+
+      if (rightPixels !== leftPixels) {
+        return rightPixels - leftPixels;
+      }
+
+      return right.bandwidth - left.bandwidth;
+    });
+  }
+
+  function injectPageBridge() {
+    if (bridgeReady) {
+      return Promise.resolve();
+    }
+
+    if (bridgeReadyPromise) {
+      return bridgeReadyPromise;
+    }
+
+    bridgeReadyPromise = new Promise((resolve, reject) => {
+      const existing = document.getElementById("m3u8-downloader-page-bridge");
+      if (existing) {
+        resolve();
+        return;
+      }
+
+      const script = document.createElement("script");
+      script.id = "m3u8-downloader-page-bridge";
+      script.src = chrome.runtime.getURL("src/content/page-bridge.js");
+      script.async = false;
+      script.onload = () => {
+        bridgeReady = true;
+        script.remove();
+        resolve();
+      };
+      script.onerror = () => {
+        bridgeReadyPromise = null;
+        reject(new Error("Failed to inject page bridge"));
+      };
+      (document.head || document.documentElement).appendChild(script);
+    });
+
+    return bridgeReadyPromise;
+  }
+
+  window.addEventListener("message", (event) => {
+    if (event.source !== window || !event.data || event.data.type !== PAGE_FETCH_RESPONSE) {
+      return;
+    }
+
+    const pending = pendingBridgeRequests.get(event.data.requestId);
+    if (!pending) {
+      return;
+    }
+
+    pendingBridgeRequests.delete(event.data.requestId);
+    if (!event.data.ok) {
+      pending.reject(new Error(event.data.error || `Page fetch failed: ${event.data.status}`));
+      return;
+    }
+
+    pending.resolve(event.data.content || "");
+  });
+
+  async function fetchMasterPlaylistFromPage(masterUrl) {
+    await injectPageBridge();
+
+    const requestId = `req-${Date.now()}-${bridgeRequestId += 1}`;
+    return new Promise((resolve, reject) => {
+      pendingBridgeRequests.set(requestId, { resolve, reject });
+      window.postMessage({
+        type: PAGE_FETCH_REQUEST,
+        requestId,
+        masterUrl
+      }, "*");
+
+      window.setTimeout(() => {
+        if (pendingBridgeRequests.has(requestId)) {
+          pendingBridgeRequests.delete(requestId);
+          reject(new Error("Page-context playlist fetch timed out"));
+        }
+      }, 8000);
+    });
+  }
+
+  async function reportPlaylistVariantsFromPage(masterUrl) {
+    const content = await fetchMasterPlaylistFromPage(masterUrl);
+    const variants = parseMasterPlaylist(content, masterUrl);
+    if (!variants.length) {
+      throw new Error("No stream variants found in page-context playlist response");
+    }
+
+    await safeSendMessage({
+      type: "REPORT_PLAYLIST_VARIANTS",
+      payload: {
+        pageUrl: window.location.href,
+        pageTitle: readTitle(),
+        masterUrl,
+        variants
+      }
+    });
+  }
+
   function sendPageContext() {
     if (!extensionAlive) {
       return;
@@ -90,6 +255,8 @@
           masterUrl: hintedMasterUrl
         }
       }).catch(() => {});
+
+      reportPlaylistVariantsFromPage(hintedMasterUrl).catch(() => {});
     }
   }
 
@@ -596,6 +763,18 @@
     });
     if (!state) {
       return;
+    }
+
+    if (
+      state.source?.masterUrl &&
+      !state.source?.variants?.length &&
+      String(state.lastError || "").includes("403") &&
+      lastFallbackMasterUrl !== state.source.masterUrl
+    ) {
+      lastFallbackMasterUrl = state.source.masterUrl;
+      reportPlaylistVariantsFromPage(state.source.masterUrl)
+        .then(() => refreshState(false))
+        .catch(() => {});
     }
 
     renderState(state);

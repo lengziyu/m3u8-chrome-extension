@@ -341,6 +341,30 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  if (message?.type === "REPORT_PLAYLIST_VARIANTS") {
+    (async () => {
+      if (sender.tab?.id != null) {
+        const state = await getOrCreateTabState(sender.tab.id);
+        state.siteKey = state.siteKey || "missav";
+        state.pageUrl = message.payload.pageUrl || state.pageUrl;
+        state.pageTitle = message.payload.pageTitle || state.pageTitle;
+        state.detailPage = true;
+        state.lastError = "";
+        state.source = {
+          masterUrl: message.payload.masterUrl,
+          variants: message.payload.variants || [],
+          parsing: false,
+          capturedAt: Date.now()
+        };
+        state.updatedAt = Date.now();
+        await persistTabState(sender.tab.id);
+      }
+
+      sendResponse({ ok: true });
+    })();
+    return true;
+  }
+
   if (message?.type === "GET_POPUP_STATE") {
     chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
       const [activeTab] = tabs;
