@@ -67,23 +67,42 @@ export function parseMasterPlaylist(content, masterUrl) {
   });
 }
 
-export async function fetchAndParseMasterPlaylist(masterUrl) {
-  const response = await fetch(masterUrl, {
+async function fetchPlaylistWithReferrer(masterUrl, referrer = "") {
+  const options = {
     headers: {
       Accept: "application/vnd.apple.mpegurl, application/x-mpegURL, text/plain"
     }
-  });
+  };
 
-  if (!response.ok) {
-    throw new Error(`Failed to fetch playlist: ${response.status}`);
+  if (referrer) {
+    options.referrer = referrer;
+    options.referrerPolicy = "unsafe-url";
   }
 
-  const content = await response.text();
-  const variants = parseMasterPlaylist(content, masterUrl);
+  return fetch(masterUrl, options);
+}
 
-  if (variants.length === 0) {
-    throw new Error("No stream variants found in master playlist");
+export async function fetchAndParseMasterPlaylist(masterUrl, referrers = []) {
+  const candidates = [...new Set(referrers.filter(Boolean))];
+  candidates.push("");
+
+  let lastError = null;
+  for (const referrer of candidates) {
+    const response = await fetchPlaylistWithReferrer(masterUrl, referrer);
+    if (!response.ok) {
+      lastError = new Error(`Failed to fetch playlist: ${response.status}`);
+      continue;
+    }
+
+    const content = await response.text();
+    const variants = parseMasterPlaylist(content, masterUrl);
+
+    if (variants.length === 0) {
+      throw new Error("No stream variants found in master playlist");
+    }
+
+    return variants;
   }
 
-  return variants;
+  throw lastError || new Error("Failed to fetch playlist");
 }

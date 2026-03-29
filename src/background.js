@@ -184,7 +184,10 @@ async function captureMasterPlaylist({ tabId, pageUrl, playlistUrl }) {
   await persistTabState(tabId);
 
   try {
-    const variants = await fetchAndParseMasterPlaylist(playlistUrl);
+    const variants = await fetchAndParseMasterPlaylist(playlistUrl, [
+      context.pageUrl,
+      context.adapter.getReferer()
+    ]);
     state.source = {
       masterUrl: playlistUrl,
       variants,
@@ -254,6 +257,7 @@ function createTaskPayload(state, variant) {
     pageTitle: state.pageTitle,
     url: state.pageUrl
   });
+  const requestReferer = state.pageUrl || adapter.getReferer();
 
   return {
     filename_hint: filenameHint,
@@ -261,9 +265,9 @@ function createTaskPayload(state, variant) {
     resolution: variant.resolution,
     m3u8_url: variant.url,
     page_url: state.pageUrl,
-    referer: adapter.getReferer(),
+    referer: requestReferer,
     headers: {
-      Referer: adapter.getReferer()
+      Referer: requestReferer
     }
   };
 }
