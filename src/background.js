@@ -195,6 +195,16 @@ async function captureMasterPlaylist({ tabId, pageUrl, playlistUrl }) {
       capturedAt: state.source.capturedAt
     };
   } catch (error) {
+    if (state.source?.variants?.length) {
+      state.source = {
+        ...state.source,
+        parsing: false
+      };
+      state.updatedAt = Date.now();
+      await persistTabState(tabId);
+      return;
+    }
+
     state.lastError = error instanceof Error ? error.message : String(error);
     state.source = {
       masterUrl: playlistUrl,
@@ -258,6 +268,13 @@ function createTaskPayload(state, variant) {
     url: state.pageUrl
   });
   const requestReferer = state.pageUrl || adapter.getReferer();
+  const requestOrigin = (() => {
+    try {
+      return new URL(requestReferer).origin;
+    } catch {
+      return "https://missav.ws";
+    }
+  })();
 
   return {
     filename_hint: filenameHint,
@@ -267,7 +284,8 @@ function createTaskPayload(state, variant) {
     page_url: state.pageUrl,
     referer: requestReferer,
     headers: {
-      Referer: requestReferer
+      Referer: requestReferer,
+      Origin: requestOrigin
     }
   };
 }
